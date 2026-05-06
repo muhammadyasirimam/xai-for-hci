@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAI for HCI — Explainable Loan Approval</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #050505;
+    --card: rgba(255,255,255,0.03);
+    --card-hover: rgba(255,255,255,0.05);
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.15);
+    --text: #ffffff;
+    --text-sec: #a3a3a3;
+    --text-muted: #737373;
+    --accent: #6366f1;
+    --accent-glow: rgba(99,102,241,0.3);
+    --accent-dim: rgba(99,102,241,0.08);
+    --green: #22c55e;
+    --green-soft: rgba(34,197,94,0.12);
+    --red: #ef4444;
+    --red-soft: rgba(239,68,68,0.12);
+    --yellow: #eab308;
+    --yellow-soft: rgba(234,179,8,0.12);
+    --radius: 12px;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 500px;
+    background: radial-gradient(ellipse, var(--accent-glow), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    position: relative;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(99,102,241,0.2);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* ── How It Works Button ── */
+  .btn-how {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text-sec);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .btn-how:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+    box-shadow: 0 0 16px rgba(99,102,241,0.15);
+  }
+
+  .header h1 {
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 14px;
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header p {
+    font-size: 15px;
+    color: var(--text-sec);
+    max-width: 560px;
+    margin: 0 auto;
+    font-weight: 300;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    transition: all 0.3s ease;
+  }
+
+  .card:hover {
+    background: var(--card-hover);
+    border-color: var(--border-hover);
+  }
+
+  .card-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  /* ── Main Grid ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 860px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Input Panel ── */
+  .input-panel { display: flex; flex-direction: column; gap: 16px; }
+
+  .slider-group { display: flex; flex-direction: column; gap: 6px; }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .slider-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .slider-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.08);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 10px var(--accent-glow);
+    transition: transform 0.15s ease;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    cursor: pointer;
+  }
+
+  .slider-range {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: -2px;
+  }
+
+  .btn-predict {
+    margin-top: 4px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-predict:hover {
+    background: #5558e6;
+    box-shadow: 0 0 30px var(--accent-glow);
+    transform: translateY(-1px);
+  }
+
+  .btn-predict:active { transform: translateY(0); }
+
+  .btn-random {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-sec);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-random:hover {
+    border-color: var(--border-hover);
+    color: var(--text);
+    background: var(--card);
+  }
+
+  /* ── Right Column ── */
+  .right-col { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── Prediction Result ── */
+  .result-card {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 28px;
+  }
+
+  .result-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    flex-shrink: 0;
+    transition: all 0.4s ease;
+  }
+
+  .result-icon.approved {
+    background: var(--green-soft);
+    box-shadow: 0 0 30px rgba(34,197,94,0.15);
+  }
+
+  .result-icon.rejected {
+    background: var(--red-soft);
+    box-shadow: 0 0 30px rgba(239,68,68,0.15);
+  }
+
+  .result-info { flex: 1; }
+
+  .result-label {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    transition: color 0.3s ease;
+  }
+
+  .result-label.approved { color: var(--green); }
+  .result-label.rejected { color: var(--red); }
+
+  .result-sub {
+    font-size: 13px;
+    color: var(--text-sec);
+    font-weight: 300;
+  }
+
+  .confidence-ring {
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .confidence-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .confidence-ring .bg-ring {
+    fill: none;
+    stroke: rgba(255,255,255,0.06);
+    stroke-width: 4;
+  }
+
+  .confidence-ring .fg-ring {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease, stroke 0.3s ease;
+  }
+
+  .confidence-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .tab-btn:hover { color: var(--text-sec); }
+
+  .tab-btn.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── SHAP Bars ── */
+  .shap-container { display: flex; flex-direction: column; gap: 12px; }
+
+  .shap-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .shap-name {
+    width: 110px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-sec);
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .shap-track {
+    flex: 1;
+    height: 28px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+
+  .shap-center {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255,255,255,0.1);
+    z-index: 1;
+  }
+
+  .shap-fill {
+    position: absolute;
+    height: 100%;
+    border-radius: 6px;
+    transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 0;
+  }
+
+  .shap-fill.positive {
+    background: linear-gradient(90deg, rgba(34,197,94,0.05), rgba(34,197,94,0.3));
+    left: 50%;
+  }
+
+  .shap-fill.negative {
+    background: linear-gradient(270deg, rgba(239,68,68,0.05), rgba(239,68,68,0.3));
+    right: 50%;
+  }
+
+  .shap-val {
+    position: absolute;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    z-index: 2;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .shap-val.positive {
+    right: calc(100% + 4px);
+    color: var(--green);
+  }
+
+  .shap-val.negative {
+    left: calc(100% + 4px);
+    color: var(--red);
+  }
+
+  .shap-legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .shap-legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .legend-dot.green { background: var(--green); }
+  .legend-dot.red { background: var(--red); }
+
+  /* ── Global Importance ── */
+  .global-bars { display: flex; flex-direction: column; gap: 10px; }
+
+  .global-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .global-name {
+    width: 130px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-sec);
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .global-track {
+    flex: 1;
+    height: 24px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .global-fill {
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--accent), rgba(99,102,241,0.4));
+    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .global-pct {
+    width: 40px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Counterfactual ── */
+  .cf-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .cf-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    transition: all 0.2s ease;
+  }
+
+  .cf-item:hover {
+    background: rgba(255,255,255,0.04);
+    border-color: var(--border-hover);
+  }
+
+  .cf-arrow {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--green-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .cf-arrow svg {
+    width: 16px;
+    height: 16px;
+    color: var(--green);
+  }
+
+  .cf-text {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-sec);
+    font-weight: 400;
+  }
+
+  .cf-text strong { color: var(--text); font-weight: 600; }
+
+  .cf-impact {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--green);
+    background: var(--green-soft);
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+
+  .cf-impact.would-still-reject {
+    color: var(--yellow);
+    background: var(--yellow-soft);
+  }
+
+  .cf-empty {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .cf-empty span {
+    font-size: 28px;
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  /* ── Decision Path ── */
+  .decision-path {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 10px 0;
+  }
+
+  .dp-node {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    border: 1px solid var(--border);
+    background: var(--card);
+    min-width: 240px;
+    transition: all 0.3s ease;
+  }
+
+  .dp-node.active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    box-shadow: 0 0 20px rgba(99,102,241,0.1);
+  }
+
+  .dp-node.result-approved {
+    border-color: var(--green);
+    background: var(--green-soft);
+    color: var(--green);
+  }
+
+  .dp-node.result-rejected {
+    border-color: var(--red);
+    background: var(--red-soft);
+    color: var(--red);
+  }
+
+  .dp-node small {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-top: 2px;
+  }
+
+  .dp-node.active small { color: var(--text-sec); }
+
+  .dp-connector {
+    width: 2px;
+    height: 24px;
+    background: var(--border);
+    position: relative;
+  }
+
+  .dp-connector::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--border);
+  }
+
+  .dp-branch-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 4px 0;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Bottom Grid ── */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 860px) {
+    .bottom-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Info Banner ── */
+  .info-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(99,102,241,0.02));
+    border: 1px solid rgba(99,102,241,0.15);
+  }
+
+  .info-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(99,102,241,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .info-icon svg {
+    width: 20px;
+    height: 20px;
+    color: var(--accent);
+  }
+
+  .info-content h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .info-content p {
+    font-size: 12px;
+    color: var(--text-sec);
+    font-weight: 300;
+    line-height: 1.6;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding-top: 40px;
+    border-top: 1px solid var(--border);
+  }
+
+  .footer p {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    transition: opacity 0.2s;
+  }
+
+  .footer a:hover { opacity: 0.8; }
+
+  /* ═══════════════════════════════════════════════
+     MODAL — How It Works
+     ═══════════════════════════════════════════════ */
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+
+  .modal-overlay.open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .modal {
+    background: #0e0e0e;
+    border: 1px solid var(--border-hover);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 680px;
+    max-height: 85vh;
+    overflow-y: auto;
+    transform: translateY(20px) scale(0.97);
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 60px rgba(99,102,241,0.08);
+  }
+
+  .modal-overlay.open .modal {
+    transform: translateY(0) scale(1);
+  }
+
+  /* Scrollbar styling for modal */
+  .modal::-webkit-scrollbar {
+    width: 6px;
+  }
+  .modal::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .modal::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 28px 0;
+    position: sticky;
+    top: 0;
+    background: #0e0e0e;
+    z-index: 2;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+
+  .modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .modal-header-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--accent-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-header-icon svg {
+    width: 18px;
+    height: 18px;
+    color: var(--accent);
+  }
+
+  .modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-sec);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .modal-close:hover {
+    background: rgba(239,68,68,0.1);
+    border-color: rgba(239,68,68,0.3);
+    color: var(--red);
+  }
+
+  .modal-close svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .modal-body {
+    padding: 24px 28px 28px;
+  }
+
+  /* ── Modal Sections ── */
+  .modal-section {
+    margin-bottom: 24px;
+  }
+
+  .modal-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .modal-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .modal-section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(99,102,241,0.15);
+  }
+
+  .modal-section p {
+    font-size: 13px;
+    color: var(--text-sec);
+    font-weight: 300;
+    line-height: 1.7;
+    margin-bottom: 8px;
+  }
+
+  .modal-section p:last-child { margin-bottom: 0; }
+
+  .modal-section strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .modal-section code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    background: rgba(255,255,255,0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ── Technique Cards inside Modal ── */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  @media (max-width: 520px) {
+    .tech-grid { grid-template-columns: 1fr; }
+  }
+
+  .tech-card {
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.015);
+    transition: all 0.2s ease;
+  }
+
+  .tech-card:hover {
+    background: rgba(255,255,255,0.03);
+    border-color: var(--border-hover);
+  }
+
+  .tech-card-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tech-card-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .tech-card-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    font-weight: 400;
+  }
+
+  /* ── Formula Block ── */
+  .formula-block {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 12px 0;
+    text-align: center;
+  }
+
+  .formula {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 500;
+    line-height: 1.8;
+  }
+
+  .formula .op {
+    color: var(--accent);
+  }
+
+  .formula .var {
+    color: var(--green);
+  }
+
+  .formula .note {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-top: 6px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* ── Feature Table ── */
+  .feature-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 12px;
+  }
+
+  .feature-table th {
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .feature-table td {
+    padding: 8px 10px;
+    color: var(--text-sec);
+    font-weight: 400;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .feature-table tr:last-child td { border-bottom: none; }
+
+  .feature-table .weight-pos {
+    color: var(--green);
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+  }
+
+  .feature-table .weight-neg {
+    color: var(--red);
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+  }
+
+  .feature-table .pct {
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── HCI Callout ── */
+  .hci-callout {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--green-soft);
+    border: 1px solid rgba(34,197,94,0.15);
+    margin-top: 12px;
+  }
+
+  .hci-callout-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+
+  .hci-callout-text {
+    font-size: 12px;
+    color: var(--text-sec);
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  .hci-callout-text strong { color: var(--green); }
+
+  /* ── Disclaimer ── */
+  .modal-disclaimer {
+    margin-top: 20px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--yellow-soft);
+    border: 1px solid rgba(234,179,8,0.15);
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .modal-disclaimer strong {
+    color: var(--yellow);
+  }
+
+  /* ── Animations ── */
+  .fade-in {
+    animation: fadeIn 0.6s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    padding: 12px 20px;
+    border-radius: 10px;
+    background: rgba(20,20,20,0.95);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 10000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    backdrop-filter: blur(12px);
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── Responsive fine-tuning ── */
+  @media (max-width: 640px) {
+    .container { padding: 24px 16px 60px; }
+    .result-card { flex-direction: column; text-align: center; gap: 16px; }
+    .shap-name, .global-name { width: 80px; font-size: 11px; }
+    .tabs { flex-wrap: wrap; }
+    .tab-btn { font-size: 11px; padding: 8px 10px; }
+    .modal { max-height: 90vh; }
+    .modal-header, .modal-body { padding-left: 20px; padding-right: 20px; }
+    .tech-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <header class="header fade-in">
+    <div class="header-top">
+      <div class="badge"><span class="dot"></span> Explainable AI × HCI</div>
+      <button class="btn-how" id="btnHow" title="How It Works" aria-label="How It Works">?</button>
+    </div>
+    <h1>Understanding <span>Why</span> AI Decides</h1>
+    <p>An interactive demonstration of how explainability techniques help users understand, trust, and interact with AI decisions.</p>
+  </header>
+
+  <!-- Main Grid -->
+  <div class="main-grid">
+    <!-- Input Panel -->
+    <div class="input-panel fade-in stagger-1">
+      <div class="card" style="flex:1;">
+        <div class="card-label">Input Features</div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-name">Credit Score</span>
+            <span class="slider-value" id="val-credit">680</span>
+          </div>
+          <input type="range" id="credit" min="300" max="850" value="680" step="10">
+          <div class="slider-range"><span>300</span><span>850</span></div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-name">Annual Income</span>
+            <span class="slider-value" id="val-income">$55,000</span>
+          </div>
+          <input type="range" id="income" min="10000" max="250000" value="55000" step="1000">
+          <div class="slider-range"><span>$10k</span><span>$250k</span></div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-name">Loan Amount</span>
+            <span class="slider-value" id="val-loan">$120,000</span>
+          </div>
+          <input type="range" id="loan" min="5000" max="500000" value="120000" step="5000">
+          <div class="slider-range"><span>$5k</span><span>$500k</span></div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-name">Employment (years)</span>
+            <span class="slider-value" id="val-employ">4 yrs</span>
+          </div>
+          <input type="range" id="employ" min="0" max="30" value="4" step="1">
+          <div class="slider-range"><span>0</span><span>30</span></div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-name">Debt-to-Income %</span>
+            <span class="slider-value" id="val-dti">28%</span>
+          </div>
+          <input type="range" id="dti" min="0" max="60" value="28" step="1">
+          <div class="slider-range"><span>0%</span><span>60%</span></div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-name">Previous Defaults</span>
+            <span class="slider-value" id="val-defaults">0</span>
+          </div>
+          <input type="range" id="defaults" min="0" max="5" value="0" step="1">
+          <div class="slider-range"><span>0</span><span>5</span></div>
+        </div>
+      </div>
+
+      <button class="btn-predict" id="btnPredict">Analyze & Explain</button>
+      <button class="btn-random" id="btnRandom">⚡ Randomize Inputs</button>
+    </div>
+
+    <!-- Right Column -->
+    <div class="right-col">
+      <!-- Prediction Result -->
+      <div class="card result-card fade-in stagger-2" id="resultCard">
+        <div class="result-icon" id="resultIcon">⚖️</div>
+        <div class="result-info">
+          <div class="result-label" id="resultLabel">Awaiting Analysis</div>
+          <div class="result-sub" id="resultSub">Adjust features and click "Analyze & Explain"</div>
+        </div>
+        <div class="confidence-ring" id="confRing" style="display:none;">
+          <svg viewBox="0 0 64 64">
+            <circle class="bg-ring" cx="32" cy="32" r="28"/>
+            <circle class="fg-ring" id="confArc" cx="32" cy="32" r="28"
+              stroke-dasharray="175.93" stroke-dashoffset="175.93"/>
+          </svg>
+          <div class="confidence-text" id="confText">0%</div>
+        </div>
+      </div>
+
+      <!-- Explanation Tabs -->
+      <div class="card fade-in stagger-3">
+        <div class="tabs" id="tabs">
+          <button class="tab-btn active" data-tab="local">Local (SHAP)</button>
+          <button class="tab-btn" data-tab="global">Global Importance</button>
+          <button class="tab-btn" data-tab="counterfactual">Counterfactual</button>
+          <button class="tab-btn" data-tab="path">Decision Path</button>
+        </div>
+
+        <!-- Local SHAP -->
+        <div class="tab-panel active" id="tab-local" style="margin-top:20px;">
+          <div class="shap-container" id="shapContainer">
+            <div class="cf-empty"><span>📊</span>Run analysis to see local feature contributions</div>
+          </div>
+          <div class="shap-legend" id="shapLegend" style="display:none;">
+            <span><span class="legend-dot green"></span> Increases approval</span>
+            <span><span class="legend-dot red"></span> Decreases approval</span>
+          </div>
+        </div>
+
+        <!-- Global Importance -->
+        <div class="tab-panel" id="tab-global" style="margin-top:20px;">
+          <div class="global-bars" id="globalBars">
+            <div class="cf-empty"><span>📈</span>Run analysis to see global feature importance</div>
+          </div>
+        </div>
+
+        <!-- Counterfactual -->
+        <div class="tab-panel" id="tab-counterfactual" style="margin-top:20px;">
+          <div class="cf-container" id="cfContainer">
+            <div class="cf-empty"><span>🔄</span>Run analysis to see counterfactual suggestions</div>
+          </div>
+        </div>
+
+        <!-- Decision Path -->
+        <div class="tab-panel" id="tab-path" style="margin-top:20px;">
+          <div class="decision-path" id="decisionPath">
+            <div class="cf-empty"><span>🌳</span>Run analysis to see the decision path</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Info -->
+  <div class="bottom-grid fade-in stagger-4">
+    <div class="info-banner">
+      <div class="info-icon">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.674M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+      </div>
+      <div class="info-content">
+        <h3>What is Explainable AI?</h3>
+        <p>XAI refers to methods and techniques that make AI system decisions understandable to humans. It bridges the gap between complex ML models and human interpretability — a core concern in Human-Computer Interaction.</p>
+      </div>
+    </div>
+    <div class="info-banner">
+      <div class="info-icon">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+      </div>
+      <div class="info-content">
+        <h3>Why HCI Needs XAI</h3>
+        <p>Users need to trust, verify, and appropriately rely on AI. Without explanations, users either over-trust or dismiss AI outputs. XAI transforms AI from a black box into a collaborative partner.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer fade-in stagger-5">
+    <p>Built by <a href="https://github.com/muhammadyasirimam" target="_blank">muhammadyasirimam</a> — <a href="https://muhammadyasirimam.github.io/" target="_blank">XAI for HCI Project</a></p>
+  </footer>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MODAL: How It Works
+     ═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <div class="modal-header-icon">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+        </div>
+        <span class="modal-title" id="modalTitle">How It Works</span>
+      </div>
+      <button class="modal-close" id="modalClose" aria-label="Close">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Section 1: The Model -->
+      <div class="modal-section">
+        <div class="modal-section-label">The Model</div>
+        <p>
+          This demo uses a <strong>weighted linear scoring model</strong> — a simplified but pedagogically clear version of how many real-world credit scoring systems work. Each input feature is normalized to <code>[0, 1]</code>, multiplied by a learned weight, and summed with a base approval rate.
+        </p>
+        <div class="formula-block">
+          <div class="formula">
+            <span class="var">score</span>
+            <span class="op"> = </span>
+            <span class="var">base</span>
+            <span class="op"> + </span>
+            Σ(<span class="var">w<sub>i</sub></span>
+            <span class="op"> × </span>
+            <span class="var">norm(x<sub>i</sub>)</span>)
+            <span class="note">If score ≥ 50% → Approved · If score &lt; 50% → Rejected</span>
+          </div>
+        </div>
+        <p>
+          The <strong>base rate is 52%</strong> — meaning a completely average applicant is slightly more likely to be approved than rejected. Each feature then shifts this probability up or down.
+        </p>
+      </div>
+
+      <!-- Section 2: Features & Weights -->
+      <div class="modal-section">
+        <div class="modal-section-label">Features & Weights</div>
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Effect</th>
+              <th>Weight</th>
+              <th>Importance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Credit Score</td>
+              <td>Higher → more likely approved</td>
+              <td class="weight-pos">+0.35</td>
+              <td class="pct">38%</td>
+            </tr>
+            <tr>
+              <td>Annual Income</td>
+              <td>Higher → more likely approved</td>
+              <td class="weight-pos">+0.25</td>
+              <td class="pct">27%</td>
+            </tr>
+            <tr>
+              <td>Loan Amount</td>
+              <td>Higher → more likely rejected</td>
+              <td class="weight-neg">−0.15</td>
+              <td class="pct">16%</td>
+            </tr>
+            <tr>
+              <td>Employment Years</td>
+              <td>More years → slightly more approved</td>
+              <td class="weight-pos">+0.10</td>
+              <td class="pct">11%</td>
+            </tr>
+            <tr>
+              <td>Debt-to-Income %</td>
+              <td>Higher ratio → more likely rejected</td>
+              <td class="weight-neg">−0.10</td>
+              <td class="pct">11%</td>
+            </tr>
+            <tr>
+              <td>Previous Defaults</td>
+              <td>More defaults → more likely rejected</td>
+              <td class="weight-neg">−0.05</td>
+              <td class="pct">5%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section 3: Explanation Techniques -->
+      <div class="modal-section">
+        <div class="modal-section-label">Explanation Techniques</div>
+        <p>Each tab in the dashboard demonstrates a different XAI approach — all computed from the same underlying model:</p>
+        <div class="tech-grid">
+          <div class="tech-card">
+            <div class="tech-card-name">
+              <span class="tech-card-dot" style="background:var(--green)"></span>
+              Local (SHAP)
+            </div>
+            <div class="tech-card-desc">Shows how each feature pushed <em>this specific</em> prediction above or below the 50% threshold. Inspired by SHAP (SHapley Additive exPlanations).</div>
+          </div>
+          <div class="tech-card">
+            <div class="tech-card-name">
+              <span class="tech-card-dot" style="background:var(--accent)"></span>
+              Global Importance
+            </div>
+            <div class="tech-card-desc">Shows which features matter most <em>in general</em> across all possible inputs, based on absolute weight magnitudes.</div>
+          </div>
+          <div class="tech-card">
+            <div class="tech-card-name">
+              <span class="tech-card-dot" style="background:var(--yellow)"></span>
+              Counterfactual
+            </div>
+            <div class="tech-card-desc">Answers "What would I need to change?" — computes the <em>minimum</em> feature modifications needed to flip a rejection to approval.</div>
+          </div>
+          <div class="tech-card">
+            <div class="tech-card-name">
+              <span class="tech-card-dot" style="background:var(--text-sec)"></span>
+              Decision Path
+            </div>
+            <div class="tech-card-desc">Decomposes the decision into a sequence of yes/no checkpoints, mimicking a simplified decision tree for transparent reasoning.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: SHAP Computation -->
+      <div class="modal-section">
+        <div class="modal-section-label">How SHAP Values Are Computed</div>
+        <p>
+          The SHAP-like contribution for each feature is calculated as:
+        </p>
+        <div class="formula-block">
+          <div class="formula">
+            <span class="var">shap<sub>i</sub></span>
+            <span class="op"> = </span>
+            <span class="var">w<sub>i</sub></span>
+            <span class="op"> × (</span>
+            <span class="var">norm(x<sub>i</sub>)</span>
+            <span class="op"> − </span>
+            <span class="var">0.5</span><span class="op">)</span>
+            <span class="note">0.5 represents the "average" input — positive SHAP means this feature pushed the score above average.</span>
+          </div>
+        </div>
+        <p>
+          A <strong>positive SHAP value</strong> (green bar) means the feature's value is above average and pushed the decision toward approval. A <strong>negative SHAP value</strong> (red bar) means it pushed toward rejection. The bars are centered at zero, just like real SHAP waterfall plots.
+        </p>
+      </div>
+
+      <!-- Section 5: Counterfactual Logic -->
+      <div class="modal-section">
+        <div class="modal-section-label">How Counterfactuals Work</div>
+        <p>
+          When the loan is rejected, the system calculates the <strong>deficit</strong> — how far below 50% the score falls. For each feature with a <strong>positive weight</strong>, it computes how much that feature would need to increase to cover the deficit. For features with a <strong>negative weight</strong>, it computes how much to <em>decrease</em> the feature value.
+        </p>
+        <p>
+          Changes requiring more than <strong>40% of the feature's total range</strong> are flagged as <strong>"large change"</strong> (yellow label) — signaling they may be impractical. This is an HCI design choice to set realistic expectations.
+        </p>
+      </div>
+
+      <!-- Section 6: HCI Design Principles -->
+      <div class="modal-section">
+        <div class="modal-section-label">HCI Design Principles Used</div>
+        <div class="hci-callout">
+          <span class="hci-callout-icon">🎯</span>
+          <span class="hci-callout-text">
+            <strong>Progressive disclosure</strong> — Tabs prevent overwhelming users with all explanations at once. They choose what to explore.
+          </span>
+        </div>
+        <div class="hci-callout" style="margin-top:8px;">
+          <span class="hci-callout-icon">🎨</span>
+          <span class="hci-callout-text">
+            <strong>Color semantics</strong> — Green/red maps to universal "good/bad" mental models. No jargon like "positive coefficient."
+          </span>
+        </div>
+        <div class="hci-callout" style="margin-top:8px;">
+          <span class="hci-callout-icon">🎮</span>
+          <span class="hci-callout-text">
+            <strong>Interactive exploration</strong> — Sliders let users test "what if" scenarios, turning passive explanation into active understanding.
+          </span>
+        </div>
+        <div class="hci-callout" style="margin-top:8px;">
+          <span class="hci-callout-icon">⚡</span>
+          <span class="hci-callout-text">
+            <strong>Actionable counterfactuals</strong> — Instead of just explaining "why rejected," the system tells users "what to change" — the most useful explanation type per HCI research.
+          </span>
+        </div>
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="modal-disclaimer">
+        <strong>⚠ Disclaimer:</strong> This is an educational demonstration, not a real credit scoring system. The model is intentionally simplified to make explainability techniques clear. Real-world systems use non-linear models, additional features, regulatory constraints, and rigorous fairness auditing.
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Feature Configuration ──
+const features = [
+  { id: 'credit',   name: 'Credit Score',       min: 300,  max: 850,   weight:  0.35, format: v => v },
+  { id: 'income',   name: 'Annual Income',      min: 10000,max: 250000, weight:  0.25, format: v => '$' + (v/1000).toFixed(0) + 'k' },
+  { id: 'loan',     name: 'Loan Amount',        min: 5000, max: 500000, weight: -0.15, format: v => '$' + (v/1000).toFixed(0) + 'k' },
+  { id: 'employ',   name: 'Employment Years',   min: 0,    max: 30,     weight:  0.10, format: v => v + ' yrs' },
+  { id: 'dti',      name: 'Debt-to-Income',     min: 0,    max: 60,     weight: -0.10, format: v => v + '%' },
+  { id: 'defaults', name: 'Prev. Defaults',     min: 0,    max: 5,      weight: -0.05, format: v => v }
+];
+
+const baseRate = 0.52;
+const threshold = 0.50;
+
+// ── DOM Elements ──
+const sliders = {};
+const valDisplays = {};
+features.forEach(f => {
+  sliders[f.id] = document.getElementById(f.id);
+  valDisplays[f.id] = document.getElementById('val-' + f.id);
+});
+
+// ── Slider Live Updates ──
+features.forEach(f => {
+  sliders[f.id].addEventListener('input', () => {
+    const v = Number(sliders[f.id].value);
+    if (f.id === 'income' || f.id === 'loan') {
+      valDisplays[f.id].textContent = '$' + v.toLocaleString();
+    } else if (f.id === 'employ') {
+      valDisplays[f.id].textContent = v + ' yrs';
+    } else if (f.id === 'dti') {
+      valDisplays[f.id].textContent = v + '%';
+    } else {
+      valDisplays[f.id].textContent = v;
+    }
+  });
+});
+
+function normalize(f, val) {
+  return (val - f.min) / (f.max - f.min);
+}
+
+function computeModel() {
+  const vals = {};
+  features.forEach(f => vals[f.id] = Number(sliders[f.id].value));
+
+  const norm = {};
+  features.forEach(f => norm[f.id] = normalize(f, vals[f.id]));
+
+  let score = baseRate;
+  features.forEach(f => score += f.weight * norm[f.id]);
+  score = Math.max(0, Math.min(1, score));
+
+  const approved = score >= threshold;
+  const confidence = approved ? score : (1 - score);
+
+  const shap = {};
+  features.forEach(f => {
+    shap[f.id] = f.weight * (norm[f.id] - 0.5);
+  });
+
+  const totalWeight = features.reduce((s, f) => s + Math.abs(f.weight), 0);
+  const globalImportance = {};
+  features.forEach(f => {
+    globalImportance[f.id] = (Math.abs(f.weight) / totalWeight) * 100;
+  });
+
+  return { score, approved, confidence, shap, globalImportance, vals, norm };
+}
+
+function updateUI(result) {
+  const { score, approved, confidence, shap, globalImportance, vals } = result;
+
+  const icon = document.getElementById('resultIcon');
+  const label = document.getElementById('resultLabel');
+  const sub = document.getElementById('resultSub');
+
+  icon.className = 'result-icon ' + (approved ? 'approved' : 'rejected');
+  icon.textContent = approved ? '✅' : '❌';
+
+  label.className = 'result-label ' + (approved ? 'approved' : 'rejected');
+  label.textContent = approved ? 'Loan Approved' : 'Loan Rejected';
+
+  sub.textContent = `Model score: ${(score * 100).toFixed(1)}% — ${approved ? 'above' : 'below'} ${(threshold * 100).toFixed(0)}% threshold`;
+
+  const ring = document.getElementById('confRing');
+  const arc = document.getElementById('confArc');
+  const confText = document.getElementById('confText');
+  ring.style.display = 'block';
+
+  const circumference = 2 * Math.PI * 28;
+  const offset = circumference * (1 - confidence);
+  arc.style.strokeDashoffset = offset;
+  arc.style.stroke = approved ? 'var(--green)' : 'var(--red)';
+  confText.textContent = (confidence * 100).toFixed(0) + '%';
+  confText.style.color = approved ? 'var(--green)' : 'var(--red)';
+
+  renderSHAP(shap);
+  renderGlobal(globalImportance);
+  renderCounterfactual(result);
+  renderDecisionPath(result);
+}
+
+function renderSHAP(shap) {
+  const container = document.getElementById('shapContainer');
+  const legend = document.getElementById('shapLegend');
+
+  const sorted = features.map(f => ({ ...f, shapVal: shap[f.id] }))
+    .sort((a, b) => Math.abs(b.shapVal) - Math.abs(a.shapVal));
+
+  const maxAbs = Math.max(...sorted.map(f => Math.abs(f.shapVal)), 0.01);
+
+  let html = '';
+  sorted.forEach(f => {
+    const v = f.shapVal;
+    const pct = (Math.abs(v) / maxAbs) * 45;
+    const isPos = v >= 0;
+    const direction = isPos ? 'positive' : 'negative';
+    const width = pct + '%';
+
+    html += `
+      <div class="shap-row">
+        <span class="shap-name">${f.name}</span>
+        <div class="shap-track">
+          <div class="shap-center"></div>
+          <div class="shap-fill ${direction}" style="width:${width};"></div>
+          <span class="shap-val ${direction}">${isPos ? '+' : ''}${(v * 100).toFixed(1)}%</span>
+        </div>
+      </div>`;
+  });
+
+  container.innerHTML = html;
+  legend.style.display = 'flex';
+}
+
+function renderGlobal(globalImportance) {
+  const container = document.getElementById('globalBars');
+
+  const sorted = features.map(f => ({ ...f, pct: globalImportance[f.id] }))
+    .sort((a, b) => b.pct - a.pct);
+
+  let html = '';
+  sorted.forEach(f => {
+    html += `
+      <div class="global-row">
+        <span class="global-name">${f.name}</span>
+        <div class="global-track">
+          <div class="global-fill" style="width:${f.pct}%;"></div>
+        </div>
+        <span class="global-pct">${f.pct.toFixed(0)}%</span>
+      </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function renderCounterfactual(result) {
+  const container = document.getElementById('cfContainer');
+  const { approved, vals, score, shap } = result;
+
+  if (approved) {
+    container.innerHTML = `
+      <div class="cf-empty">
+        <span>🎉</span>
+        The loan is already approved!<br>No changes needed.
+      </div>`;
+    return;
+  }
+
+  const improvements = [];
+  const deficit = threshold - score;
+
+  features.forEach(f => {
+    const currentNorm = normalize(f, vals[f.id]);
+
+    if (f.weight > 0) {
+      const deltaNorm = deficit / f.weight;
+      const neededNorm = Math.min(1, currentNorm + deltaNorm);
+      const neededVal = Math.round(f.min + neededNorm * (f.max - f.min));
+      const clampedVal = Math.min(f.max, neededVal);
+
+      if (clampedVal > vals[f.id]) {
+        const improvement = clampedVal - vals[f.id];
+        const impact = (f.weight * (neededNorm - currentNorm) * 100).toFixed(1);
+        improvements.push({
+          name: f.name,
+          current: vals[f.id],
+          needed: clampedVal,
+          format: f.format,
+          impact: '+' + impact + '%',
+          feasible: improvement <= (f.max - f.min) * 0.4
+        });
+      }
+    } else {
+      const deltaNorm = deficit / Math.abs(f.weight);
+      const neededNorm = Math.max(0, currentNorm - deltaNorm);
+      const neededVal = Math.round(f.min + neededNorm * (f.max - f.min));
+      const clampedVal = Math.max(f.min, neededVal);
+
+      if (clampedVal < vals[f.id]) {
+        const reduction = vals[f.id] - clampedVal;
+        const impact = (Math.abs(f.weight) * (currentNorm - neededNorm) * 100).toFixed(1);
+        improvements.push({
+          name: f.name,
+          current: vals[f.id],
+          needed: clampedVal,
+          format: f.format,
+          impact: '+' + impact + '%',
+          feasible: reduction <= (f.max - f.min) * 0.4
+        });
+      }
+    }
+  });
+
+  improvements.sort((a, b) => {
+    if (a.feasible !== b.feasible) return a.feasible ? -1 : 1;
+    return parseFloat(b.impact) - parseFloat(a.impact);
+  });
+
+  if (improvements.length === 0) {
+    container.innerHTML = `<div class="cf-empty"><span>🤷</span>No single feature change can flip the decision.</div>`;
+    return;
+  }
+
+  let html = '';
+  improvements.slice(0, 4).forEach(imp => {
+    html += `
+      <div class="cf-item">
+        <div class="cf-arrow">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+        </div>
+        <div class="cf-text">
+          Change <strong>${imp.name}</strong> from ${imp.format(imp.current)} → <strong>${imp.format(imp.needed)}</strong>
+          ${!imp.feasible ? ' <span style="color:var(--yellow);font-size:11px;">(large change)</span>' : ''}
+        </div>
+        <span class="cf-impact ${!imp.feasible ? 'would-still-reject' : ''}">${imp.impact}</span>
+      </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function renderDecisionPath(result) {
+  const container = document.getElementById('decisionPath');
+  const { vals, approved, norm } = result;
+
+  const creditNorm = norm.credit;
+  const incomeNorm = norm.income;
+  const dtiNorm = norm.dti;
+  const defaultsVal = vals.defaults;
+
+  const steps = [];
+
+  if (creditNorm >= 0.6) {
+    steps.push({ text: `Credit Score ≥ 660`, detail: `Score: ${vals.credit} — Pass`, pass: true });
+  } else {
+    steps.push({ text: `Credit Score < 660`, detail: `Score: ${vals.credit} — Fail`, pass: false });
+  }
+
+  if (incomeNorm >= 0.3) {
+    steps.push({ text: `Annual Income ≥ $82.5k`, detail: `${features[1].format(vals.income)} — Pass`, pass: true });
+  } else {
+    steps.push({ text: `Annual Income < $82.5k`, detail: `${features[1].format(vals.income)} — Fail`, pass: false });
+  }
+
+  if (dtiNorm <= 0.5) {
+    steps.push({ text: `Debt-to-Income ≤ 30%`, detail: `${vals.dti}% — Pass`, pass: true });
+  } else {
+    steps.push({ text: `Debt-to-Income > 30%`, detail: `${vals.dti}% — Fail`, pass: false });
+  }
+
+  if (defaultsVal === 0) {
+    steps.push({ text: `No Previous Defaults`, detail: `Defaults: ${defaultsVal} — Pass`, pass: true });
+  } else {
+    steps.push({ text: `Has Previous Defaults`, detail: `Defaults: ${defaultsVal} — Fail`, pass: false });
+  }
+
+  steps.push({
+    text: approved ? '✅ APPROVED' : '❌ REJECTED',
+    detail: `Score: ${(result.score * 100).toFixed(1)}%`,
+    pass: approved,
+    isResult: true
+  });
+
+  let html = '';
+  steps.forEach((step, i) => {
+    const nodeClass = step.isResult
+      ? (step.pass ? 'result-approved' : 'result-rejected')
+      : (step.pass ? 'active' : '');
+
+    html += `<div class="dp-node ${nodeClass}">
+      ${step.text}
+      <small>${step.detail}</small>
+    </div>`;
+
+    if (i < steps.length - 1) {
+      html += `<div class="dp-branch-label">${step.pass ? 'YES →' : 'NO →'}</div>`;
+      html += `<div class="dp-connector"></div>`;
+    }
+  });
+
+  container.innerHTML = html;
+}
+
+// ── Tabs ──
+document.getElementById('tabs').addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+  btn.classList.add('active');
+  document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+});
+
+// ── Predict ──
+document.getElementById('btnPredict').addEventListener('click', () => {
+  const result = computeModel();
+  updateUI(result);
+  showToast('Analysis complete — explore the explanation tabs');
+});
+
+// ── Random ──
+document.getElementById('btnRandom').addEventListener('click', () => {
+  features.forEach(f => {
+    const range = f.max - f.min;
+    const step = (f.id === 'income' || f.id === 'loan') ? 1000 : (f.id === 'credit' ? 10 : 1);
+    const val = Math.round((f.min + Math.random() * range) / step) * step;
+    const clamped = Math.max(f.min, Math.min(f.max, val));
+    sliders[f.id].value = clamped;
+    sliders[f.id].dispatchEvent(new Event('input'));
+  });
+  showToast('Inputs randomized');
+});
+
+// ── Toast ──
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════
+// MODAL LOGIC
+// ═══════════════════════════════════════════════
+const overlay = document.getElementById('modalOverlay');
+const btnHow = document.getElementById('btnHow');
+const btnClose = document.getElementById('modalClose');
+
+function openModal() {
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Focus the close button for accessibility
+  setTimeout(() => btnClose.focus(), 100);
+}
+
+function closeModal() {
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+  btnHow.focus();
+}
+
+btnHow.addEventListener('click', openModal);
+btnClose.addEventListener('click', closeModal);
+
+// Close on overlay click (not modal content)
+overlay.addEventListener('click', e => {
+  if (e.target === overlay) closeModal();
+});
+
+// Close on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && overlay.classList.contains('open')) {
+    closeModal();
+  }
+});
+
+// Trap focus inside modal when open
+overlay.addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  const focusable = overlay.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])');
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+
+  if (e.shiftKey) {
+    if (document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+});
+
+// ── Auto-run on load ──
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const result = computeModel();
+    updateUI(result);
+  }, 400);
+});
+</script>
+
+</body>
+</html>
